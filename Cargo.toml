@@ -1,0 +1,8 @@
+[package]
+name = "zip-encryptor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rpassword = "5.0"
+zip = "2.2.0"
