@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 rpassword = "5.0"
+walkdir = "2.5.0"
 zip = "2.2.0"
