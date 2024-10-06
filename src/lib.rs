@@ -1,7 +1,5 @@
 use rpassword::read_password;
-use std::env;
 use std::error;
-use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
@@ -15,25 +13,6 @@ macro_rules! print_exit {
         eprintln!("error: {}", $message);
         std::process::exit(1);
     };
-}
-
-pub fn get_src_file_path() -> PathBuf {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        print_exit!("Please provide folder or file path to me!");
-    }
-
-    let src_path = PathBuf::from(&args[1]);
-
-    let metadata = fs::metadata(&src_path).unwrap_or_else(|e| {
-        print_exit!(e);
-    });
-
-    if metadata.is_dir() {
-        print_exit!("Path is a folder, please provide a file");
-    }
-
-    return src_path;
 }
 
 pub fn take_input(question: &str) -> String {
