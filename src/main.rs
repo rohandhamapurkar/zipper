@@ -11,7 +11,9 @@ use zipper::take_input;
 fn main() {
     let src_path: PathBuf = get_src_path_from_args();
 
-    let file_prefix: String = take_input("Any prefix for the the zip file name?");
+    let file_prefix: String = take_input("Any prefix for the the zip file name?").unwrap_or_else(|e| {
+        print_exit!(e);
+    });
 
     let password = get_confirmed_password().unwrap_or_else(|e: std::io::Error| {
         print_exit!(e);

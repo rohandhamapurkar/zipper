@@ -1,5 +1,5 @@
 use rpassword::read_password;
-use std::error;
+use std::error::{self, Error};
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::io::{Read, Write};
@@ -19,20 +19,16 @@ macro_rules! print_exit {
     };
 }
 
-pub fn take_input(question: &str) -> String {
+pub fn take_input(question: &str) -> Result<String, Box<dyn Error>> {
     // ask question
     print!("{}: ", question);
-    io::stdout().flush().unwrap_or_else(|e| {
-        print_exit!(e);
-    });
+    io::stdout().flush()?;
 
     let mut input: String = String::new();
     // get user input from terminal
-    io::stdin().read_line(&mut input).unwrap_or_else(|e| {
-        print_exit!(e);
-    });
+    io::stdin().read_line(&mut input)?;
 
-    return input.trim().to_string();
+    return Ok(input.trim().to_string());
 }
 
 pub fn get_confirmed_password() -> io::Result<String> {
@@ -79,17 +75,10 @@ fn init_zip(
     Ok((zip, format!("{}.zip", zip_filename)))
 }
 
-// fn read_file_contents(path: &Path) -> Result<Vec<u8>, Box<dyn error::Error>> {
-//     let mut file: File = File::open(path)?;
-//     let mut contents: Vec<u8> = Vec::new();
-//     file.read_to_end(&mut contents)?;
-//     Ok(contents)
-// }
-
 fn stream_file_to_zip(path: &Path, zip: &mut ZipWriter<File>) -> Result<(), Box<dyn error::Error>> {
     // create a file buffer
     let mut f: BufReader<File> = BufReader::new(File::open(path)?);
-    let mut buffer = [0; 8192]; // 8KB buffer
+    let mut buffer = [0; 10240]; // 10KB buffer
     loop {
         // read into buffer
         let bytes_read = f.read(&mut buffer)?;
@@ -173,4 +162,102 @@ pub fn secure_zip_dir(
     println!("File successfully zipped to {}", zip_file_name);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+    use zip::read::ZipArchive;
+
+    #[test]
+    fn test_init_zip() {
+        let temp_dir = tempdir().unwrap().into_path();
+
+        let (_, zip_filename) = init_zip("prefix", "test_file", &temp_dir).unwrap();
+
+        assert_eq!(zip_filename, "prefix_test_file.zip");
+    }
+
+    #[test]
+    fn test_secure_zip_single_file() {
+        let password = "password";
+        let temp_dir = tempdir().unwrap().into_path();
+        let file_path = temp_dir.as_path().join("test_file.txt");
+        let mut file = File::create(&file_path).unwrap();
+        writeln!(file, "Test content").unwrap();
+
+        secure_zip_single_file(file_path.clone(), "prefix", password).unwrap();
+
+        let zip_path = temp_dir.as_path().join("prefix_test_file.zip");
+        assert!(zip_path.exists());
+
+        // Verify zip contents with password
+        let zip_file = File::open(zip_path).unwrap();
+        let mut archive = ZipArchive::new(zip_file).unwrap();
+        assert_eq!(archive.len(), 1);
+
+        let mut zipped_file = archive.by_index_decrypt(0, password.as_bytes()).unwrap();
+        assert_eq!(zipped_file.name(), "test_file.txt");
+        let mut contents = String::new();
+        zipped_file.read_to_string(&mut contents).unwrap();
+        assert_eq!(contents.trim(), "Test content");
+
+        drop(temp_dir);
+    }
+
+    #[test]
+    fn test_secure_zip_dir() {
+        let password = "password";
+        let temp_dir = tempdir().unwrap().into_path();
+        let sub_dir = temp_dir.as_path().join("subdir");
+        fs::create_dir(&sub_dir).unwrap();
+        let file_path = sub_dir.join("test_file.txt");
+        let mut file = File::create(&file_path).unwrap();
+        writeln!(file, "Test content").unwrap();
+
+        secure_zip_dir(temp_dir.clone(), "", password).unwrap();
+
+        let mut zip_path = temp_dir;
+        zip_path.set_extension("zip");
+        assert!(zip_path.exists());
+
+        // Verify zip contents
+        let zip_file = File::open(zip_path).unwrap();
+        let mut archive = ZipArchive::new(zip_file).unwrap();
+        assert_eq!(archive.len(), 2); // subdir and test_file.txt
+
+        let mut zipped_file = archive
+            .by_name_decrypt("subdir/test_file.txt", "password".as_bytes())
+            .unwrap();
+        let mut contents = String::new();
+        zipped_file.read_to_string(&mut contents).unwrap();
+        assert_eq!(contents.trim(), "Test content");
+    }
+
+    #[test]
+    fn test_stream_file_to_zip() {
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("test_file.txt");
+        let mut file = File::create(&file_path).unwrap();
+        writeln!(file, "Test content").unwrap();
+
+        let zip_path = temp_dir.path().join("test.zip");
+        let zip_file = File::create(&zip_path).unwrap();
+        let mut zip = ZipWriter::new(zip_file);
+
+        let options: FileOptions<'_, ExtendedFileOptions> = FileOptions::default();
+        zip.start_file("test_file.txt", options).unwrap();
+        stream_file_to_zip(&file_path, &mut zip).unwrap();
+        zip.finish().unwrap();
+
+        // Verify zip contents
+        let zip_file = File::open(zip_path).unwrap();
+        let mut archive = ZipArchive::new(zip_file).unwrap();
+        let mut zipped_file = archive.by_name("test_file.txt").unwrap();
+        let mut contents = String::new();
+        zipped_file.read_to_string(&mut contents).unwrap();
+        assert_eq!(contents.trim(), "Test content");
+    }
 }
