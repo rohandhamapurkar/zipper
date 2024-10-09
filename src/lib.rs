@@ -173,9 +173,9 @@ mod tests {
 
     #[test]
     fn test_init_zip() {
-        let temp_dir = tempdir().unwrap().into_path();
+        let temp_dir = tempdir().unwrap();
 
-        let (_, zip_filename) = init_zip("prefix", "test_file", &temp_dir).unwrap();
+        let (_, zip_filename) = init_zip("prefix", "test_file", &temp_dir.path().to_path_buf()).unwrap();
 
         assert_eq!(zip_filename, "prefix_test_file.zip");
     }
@@ -183,14 +183,14 @@ mod tests {
     #[test]
     fn test_secure_zip_single_file() {
         let password = "password";
-        let temp_dir = tempdir().unwrap().into_path();
-        let file_path = temp_dir.as_path().join("test_file.txt");
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("test_file.txt");
         let mut file = File::create(&file_path).unwrap();
         writeln!(file, "Test content").unwrap();
 
         secure_zip_single_file(file_path.clone(), "prefix", password).unwrap();
 
-        let zip_path = temp_dir.as_path().join("prefix_test_file.zip");
+        let zip_path = temp_dir.path().join("prefix_test_file.zip");
         assert!(zip_path.exists());
 
         // Verify zip contents with password
@@ -210,16 +210,16 @@ mod tests {
     #[test]
     fn test_secure_zip_dir() {
         let password = "password";
-        let temp_dir = tempdir().unwrap().into_path();
-        let sub_dir = temp_dir.as_path().join("subdir");
+        let temp_dir = tempdir().unwrap();
+        let sub_dir = temp_dir.path().join("subdir");
         fs::create_dir(&sub_dir).unwrap();
         let file_path = sub_dir.join("test_file.txt");
         let mut file = File::create(&file_path).unwrap();
         writeln!(file, "Test content").unwrap();
 
-        secure_zip_dir(temp_dir.clone(), "", password).unwrap();
+        secure_zip_dir(temp_dir.path().to_path_buf(), "", password).unwrap();
 
-        let mut zip_path = temp_dir;
+        let mut zip_path = temp_dir.path().to_path_buf();
         zip_path.set_extension("zip");
         assert!(zip_path.exists());
 
