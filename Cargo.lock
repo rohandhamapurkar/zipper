@@ -750,7 +750,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "zip-encryptor"
+name = "zipper"
 version = "0.1.0"
 dependencies = [
  "rpassword",

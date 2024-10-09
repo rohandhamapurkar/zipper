@@ -2,11 +2,11 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use zip_encryptor::get_confirmed_password;
-use zip_encryptor::print_exit;
-use zip_encryptor::secure_zip_dir;
-use zip_encryptor::secure_zip_single_file;
-use zip_encryptor::take_input;
+use zipper::get_confirmed_password;
+use zipper::print_exit;
+use zipper::secure_zip_dir;
+use zipper::secure_zip_single_file;
+use zipper::take_input;
 
 fn main() {
     let src_path: PathBuf = get_src_path_from_args();
